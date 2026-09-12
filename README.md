@@ -3,7 +3,7 @@ A web application to track job applications - COP4751 Course Project
 
 ## Features (Coming Soon)
 - Track companies and job listings
-- Recrod application submissions
+- Record application submissions
 - Manage interview schedules
 - Store contact information
 
