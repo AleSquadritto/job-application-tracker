@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Contacts{% endblock %}
+{% block list %}
+<div class="page-head"><h1>Contacts</h1><a class="btn" href="{{ url_for('new_view', entity=entity) }}">+ Add contact</a></div>
+{% if rows %}
+<div class="table-wrap"><table>
+  <thead><tr><th>ID</th><th>Name</th><th>Title</th><th>Company</th><th>Email</th><th>Phone</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.contact_id }}</td>
+      <td><a href="{{ url_for('detail_view', entity=entity, rid=r.contact_id) }}">{{ r.contact_name }}</a></td>
+      <td>{{ r.title or '—' }}</td>
+      <td>{{ r.company_name }}</td>
+      <td>{% if r.email %}<a href="mailto:{{ r.email }}">{{ r.email }}</a>{% else %}—{% endif %}</td>
+      <td>{{ r.phone or '—' }}</td>
+      <td><div class="actions">
+        <a class="btn btn-small btn-light" href="{{ url_for('detail_view', entity=entity, rid=r.contact_id) }}">View</a>
+        <a class="btn btn-small btn-light" href="{{ url_for('edit_view', entity=entity, rid=r.contact_id) }}">Edit</a>
+        <form method="post" action="{{ url_for('delete_view', entity=entity, rid=r.contact_id) }}" data-confirm="{{ cfg.delete_msg }}">
+          <button class="btn btn-small btn-danger" type="submit">Delete</button>
+        </form>
+      </div></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}<p class="empty">No contacts yet. Add a company first, then add contacts.</p>{% endif %}
+{% endblock %}

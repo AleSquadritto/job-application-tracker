@@ -1,0 +1,137 @@
+{# Draws one form input. Used by the add/edit form further down in this file. #}
+{% macro render_field(f, values, errors) %}
+  {% set value = values.get(f.name, '') %}
+  <div class="field {{ 'has-error' if errors.get(f.name) }}">
+    {% if f.kind == 'bool' %}
+      <label class="checkbox"><input type="checkbox" name="{{ f.name }}" {{ 'checked' if value }}> {{ f.label }}</label>
+    {% else %}
+      <label for="{{ f.name }}">{{ f.label }}{% if f.required %} <span class="req">*</span>{% endif %}</label>
+      {% if f.kind == 'textarea' %}
+        <textarea id="{{ f.name }}" name="{{ f.name }}" rows="3">{{ value }}</textarea>
+      {% elif f.kind == 'select' %}
+        <select id="{{ f.name }}" name="{{ f.name }}">
+          <option value="">-- choose --</option>
+          {% for opt_value, opt_label in f.options %}
+            <option value="{{ opt_value }}" {{ 'selected' if value|string == opt_value|string }}>{{ opt_label }}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        {% set input_type = {'int': 'number', 'date': 'date', 'email': 'email', 'url': 'url'}.get(f.kind, 'text') %}
+        <input id="{{ f.name }}" name="{{ f.name }}" type="{{ input_type }}" value="{{ value }}"
+               {% if f.kind == 'int' %}min="0"{% endif %} {% if f.maxlen %}maxlength="{{ f.maxlen }}"{% endif %}>
+      {% endif %}
+    {% endif %}
+    {% if f.hint %}<small class="hint">{{ f.hint }}</small>{% endif %}
+    {% if errors.get(f.name) %}<small class="error-text">{{ errors[f.name] }}</small>{% endif %}
+  </div>
+{% endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Job Tracker{% endblock %} · Job Application Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="navbar">
+    <a class="brand" href="{{ url_for('dashboard') }}">Job Tracker</a>
+    <div class="nav-links">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.path == '/' }}">Dashboard</a>
+      {% for key, label in [('companies','Companies'), ('jobs','Jobs'), ('applications','Applications'), ('contacts','Contacts')] %}
+        <a href="{{ url_for('list_view', entity=key) }}" class="{{ 'active' if request.path.startswith('/' ~ key) }}">{{ label }}</a>
+      {% endfor %}
+      <a href="{{ url_for('job_match') }}" class="{{ 'active' if request.path.startswith('/job-match') }}">Job Match</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}
+      {# The four table pages (companies, jobs, applications, contacts) share the detail and form
+         layouts below. Each of those templates only fills in its own "list" block. #}
+      {% if mode == 'detail' %}
+        {% set rid = row[cfg.pk] %}
+        <div class="page-head">
+          <h1>{{ cfg.singular }} #{{ rid }}</h1>
+          <div class="actions">
+            <a class="btn btn-light" href="{{ url_for('list_view', entity=entity) }}">Back to list</a>
+            <a class="btn" href="{{ url_for('edit_view', entity=entity, rid=rid) }}">Edit</a>
+            <form method="post" action="{{ url_for('delete_view', entity=entity, rid=rid) }}" data-confirm="{{ cfg.delete_msg }}">
+              <button class="btn btn-danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </div>
+
+        <section class="card">
+          <dl class="details">
+            {% for f in fields if f.name != 'salary_max' %}
+              <dt>{{ 'Salary' if f.name == 'salary_min' else f.label }}</dt>
+              <dd>
+                {% if f.fk == 'companies' %}
+                  <a href="{{ url_for('detail_view', entity='companies', rid=row[f.name]) }}">{{ row.company_name }}</a>
+                {% elif f.fk == 'jobs' %}
+                  <a href="{{ url_for('detail_view', entity='jobs', rid=row[f.name]) }}">{{ row.job_title }}</a> @ {{ row.company_name }}
+                {% elif f.name == 'status' %}<span class="badge badge-{{ row.status|lower }}">{{ row.status }}</span>
+                {% elif f.kind == 'bool' %}{{ 'Yes' if row[f.name] else 'No' }}
+                {% elif f.kind == 'url' and row[f.name] %}<a href="{{ row[f.name] }}" target="_blank" rel="noopener">{{ row[f.name] }}</a>
+                {% elif f.kind == 'email' and row[f.name] %}<a href="mailto:{{ row[f.name] }}">{{ row[f.name] }}</a>
+                {% elif f.name == 'salary_min' %}{{ row|salary }}
+                {% else %}{{ row[f.name] if row[f.name] not in (None, '') else '—' }}{% endif %}
+              </dd>
+            {% endfor %}
+          </dl>
+        </section>
+
+        {% if cfg.json_col %}
+        <section class="card">
+          <h2>{{ cfg.json_title }}</h2>
+          {% if json_info %}
+            <dl class="details">{% for label, value in json_info %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+          {% else %}<p class="empty">Nothing stored yet. <a href="{{ url_for('edit_view', entity=entity, rid=rid) }}">Edit</a> to add details.</p>{% endif %}
+        </section>
+        {% endif %}
+
+        {% for title, items, add_url, add_label in related %}
+        <section class="card">
+          <div class="page-head"><h2>{{ title }}</h2><a class="btn btn-small btn-light" href="{{ add_url }}">+ {{ add_label }}</a></div>
+          {% if items %}<ul class="link-list">{% for text, link in items %}<li><a href="{{ link }}">{{ text }}</a></li>{% endfor %}</ul>
+          {% else %}<p class="empty">None yet.</p>{% endif %}
+        </section>
+        {% endfor %}
+      {% elif mode == 'form' %}
+        <div class="page-head"><h1>{{ 'Edit' if record_id else 'Add' }} {{ cfg.singular|lower }}</h1></div>
+        <form method="post" class="card form" novalidate>
+          {% for f in fields %}{{ render_field(f, values, errors) }}{% endfor %}
+          {% if json_fields %}
+            <fieldset>
+              <legend>{{ cfg.json_title }}</legend>
+              {% for f in json_fields %}{{ render_field(f, values, errors) }}{% endfor %}
+            </fieldset>
+          {% endif %}
+          <div class="form-actions">
+            <button class="btn" type="submit">{{ 'Save changes' if record_id else 'Add ' ~ cfg.singular|lower }}</button>
+            <a class="btn btn-light" href="{{ url_for('detail_view', entity=entity, rid=record_id) if record_id else url_for('list_view', entity=entity) }}">Cancel</a>
+          </div>
+        </form>
+
+      {% else %}
+        {% block list %}{% endblock %}
+      {% endif %}
+    {% endblock %}
+  </main>
+
+  <footer class="footer">COP4751 Course Project · Flask + MySQL</footer>
+  <script>
+    // Ask for confirmation before any form that has a data-confirm message (deletes).
+    document.addEventListener('submit', function (e) {
+      var msg = e.target.dataset.confirm;
+      if (msg && !confirm(msg)) { e.preventDefault(); }
+    });
+  </script>
+</body>
+</html>

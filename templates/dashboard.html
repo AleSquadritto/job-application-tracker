@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Dashboard</h1><a class="btn" href="{{ url_for('new_view', entity='applications') }}">+ New application</a></div>
+
+<div class="stat-grid">
+  <a class="stat" href="{{ url_for('list_view', entity='companies') }}"><span class="stat-num">{{ counts.companies }}</span><span class="stat-label">Companies</span></a>
+  <a class="stat" href="{{ url_for('list_view', entity='jobs') }}"><span class="stat-num">{{ counts.jobs }}</span><span class="stat-label">Jobs</span></a>
+  <a class="stat" href="{{ url_for('list_view', entity='applications') }}"><span class="stat-num">{{ counts.applications }}</span><span class="stat-label">Applications</span></a>
+  <a class="stat" href="{{ url_for('list_view', entity='contacts') }}"><span class="stat-num">{{ counts.contacts }}</span><span class="stat-label">Contacts</span></a>
+  <div class="stat"><span class="stat-num">{{ response_rate }}%</span><span class="stat-label">Response rate</span></div>
+  <div class="stat"><span class="stat-num small">{% if pay.low %}${{ '{:,}'.format(pay.low|int) }} – ${{ '{:,}'.format(pay.high|int) }}{% else %}—{% endif %}</span><span class="stat-label">Average salary range</span></div>
+</div>
+
+<div class="two-col">
+  <section class="card">
+    <h2>Applications by status</h2>
+    {% for status, n in by_status.items() %}
+      <div class="bar-row">
+        <span class="bar-label">{{ status }}</span>
+        <div class="bar-track"><div class="bar-fill bar-{{ status|lower }}" style="width: {{ (100 * n / total) if total else 0 }}%"></div></div>
+        <span class="bar-count">{{ n }}</span>
+      </div>
+    {% endfor %}
+    <p class="hint">Response rate = applications that moved past "Applied".</p>
+  </section>
+
+  <section class="card">
+    <h2>Recent applications</h2>
+    {% if recent %}
+    <table>
+      <thead><tr><th>Job</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for a in recent %}
+        <tr>
+          <td><a href="{{ url_for('detail_view', entity='applications', rid=a.application_id) }}">{{ a.job_title }}</a><br><small>{{ a.company_name }}</small></td>
+          <td>{{ a.application_date }}</td>
+          <td><span class="badge badge-{{ a.status|lower }}">{{ a.status }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="empty">No applications yet.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}
