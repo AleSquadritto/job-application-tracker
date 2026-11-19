@@ -11,7 +11,7 @@
       <button class="btn" type="submit">Find matches</button>
     </div>
   </form>
-  {% if known_skills %}<p class="hint">Skills found in your tracked jobs: {{ known_skills|join(', ') }}</p>{% endif %}
+  {% if known_skills %}<p class="hint">Skills: {{ known_skills|join(', ') }}</p>{% endif %}
 </section>
 
 {% if user_skills %}
